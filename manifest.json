@@ -1,0 +1,10 @@
+{
+  "name": "Steuer-Rücklage",
+  "short_name": "Rücklage",
+  "description": "Steuer-Rücklage Rechner für Metallwerkstatt Hohenberger",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0f1419",
+  "theme_color": "#0f1419",
+  "orientation": "portrait"
+}
