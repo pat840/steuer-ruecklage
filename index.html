@@ -1,1 +1,456 @@
-PLACEHOLDER
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Steuer-Rücklage Rechner</title>
+<style>
+  :root {
+    --bg: #0f1419;
+    --card: #1a2332;
+    --border: #2d3a4d;
+    --text: #e8eef5;
+    --muted: #8b9bb4;
+    --accent: #3b82f6;
+    --accent-hover: #2563eb;
+    --green: #10b981;
+    --red: #ef4444;
+    --orange: #f59e0b;
+    --withdrawal: #f59e0b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.5;
+    padding: 16px;
+    max-width: 520px;
+    margin: 0 auto;
+    min-height: 100vh;
+    position: relative;
+  }
+  body::before {
+    content: "";
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    width: 380px;
+    height: 260px;
+    transform: translate(-50%, -50%);
+    background: none;
+    opacity: 0.07;
+    pointer-events: none;
+    z-index: 0;
+  }
+  body > * { position: relative; z-index: 1; }
+  h1 { font-size: 1.4rem; margin-bottom: 4px; }
+  .subtitle { color: var(--muted); font-size: 0.85rem; margin-bottom: 20px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 6px; }
+  input[type="number"], input[type="text"], input[type="month"] {
+    width: 100%;
+    background: #0d1117;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: var(--text);
+    font-size: 1rem;
+  }
+  input:focus { outline: 2px solid var(--accent); border-color: transparent; }
+  .row { display: flex; gap: 8px; margin-bottom: 10px; }
+  .row input { flex: 1; }
+  button {
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 16px;
+    font-size: 0.95rem;
+    cursor: pointer;
+    font-weight: 500;
+  }
+  button:hover { background: var(--accent-hover); }
+  button.secondary { background: #2d3a4d; }
+  button.secondary:hover { background: #3d4d66; }
+  button.danger { background: transparent; color: var(--red); padding: 4px 8px; font-size: 0.8rem; }
+  .entry {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.95rem;
+  }
+  .entry:last-child { border-bottom: none; }
+  .amount { font-variant-numeric: tabular-nums; }
+  .positive { color: var(--green); }
+  .negative { color: var(--red); }
+  .withdrawal { color: var(--withdrawal); }
+  .summary {
+    background: linear-gradient(135deg, #1e3a5f, #1a2332);
+    border-color: #3b82f6;
+  }
+  .big {
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin: 8px 0 4px;
+  }
+  .hint { font-size: 0.8rem; color: var(--muted); margin-top: 12px; }
+  .totals { display: flex; justify-content: space-between; margin-top: 8px; font-size: 0.9rem; }
+  .month-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 4px;
+    font-size: 0.85rem;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .month-row:last-child { border-bottom: none; }
+  .month-header { font-weight: 600; color: var(--muted); }
+  @media (max-width: 400px) {
+    body { padding: 12px; }
+    .big { font-size: 1.5rem; }
+    .month-row { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+  <h1>Steuer-Rücklage</h1>
+  <p class="subtitle">Metallwerkstatt Hohenberger · Einfacher Jahresrechner</p>
+
+  <div class="card">
+    <label for="taxRate">Steuersatz (wie viel % du zurücklegen willst)</label>
+    <input type="number" id="taxRate" min="0" max="100" step="1" value="35" placeholder="z.B. 30 oder 40">
+  </div>
+
+  <div class="card">
+    <label>Einnahmen</label>
+    <div class="row">
+      <input type="month" id="incomeMonth">
+      <input type="text" id="incomeDesc" placeholder="Beschreibung (optional)">
+    </div>
+    <div class="row">
+      <input type="text" id="incomeAmount" inputmode="decimal" placeholder="Betrag €" autocomplete="off">
+    </div>
+    <button onclick="addIncome()">Einnahme hinzufügen</button>
+    <div id="incomeList" style="margin-top: 12px;"></div>
+    <div class="totals">
+      <span>Summe Einnahmen:</span>
+      <span class="amount positive" id="incomeTotal">0,00 €</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <label>Ausgaben</label>
+    <div class="row">
+      <input type="month" id="expenseMonth">
+      <input type="text" id="expenseDesc" placeholder="Beschreibung (optional)">
+    </div>
+    <div class="row">
+      <input type="text" id="expenseAmount" inputmode="decimal" placeholder="Betrag €" autocomplete="off">
+    </div>
+    <button onclick="addExpense()">Ausgabe hinzufügen</button>
+    <div id="expenseList" style="margin-top: 12px;"></div>
+    <div class="totals">
+      <span>Summe Ausgaben:</span>
+      <span class="amount negative" id="expenseTotal">0,00 €</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <label>Entnahmen vom Geschäftskonto</label>
+    <div class="row">
+      <input type="month" id="withdrawalMonth">
+      <input type="text" id="withdrawalDesc" placeholder="Beschreibung (optional)">
+    </div>
+    <div class="row">
+      <input type="text" id="withdrawalAmount" inputmode="decimal" placeholder="Betrag €" autocomplete="off">
+    </div>
+    <button onclick="addWithdrawal()">Entnahme hinzufügen</button>
+    <div id="withdrawalList" style="margin-top: 12px;"></div>
+    <div class="totals">
+      <span>Summe Entnahmen:</span>
+      <span class="amount withdrawal" id="withdrawalTotal">0,00 €</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <label>Monatliche Statistik</label>
+    <div id="monthlyStats"></div>
+    <p class="hint" style="margin-top:8px;">Einnahmen − Ausgaben = steuerlicher Gewinn. Entnahmen sind Privatentnahmen und beeinflussen den Gewinn nicht.</p>
+  </div>
+
+  <div class="card summary">
+    <div class="totals">
+      <span>Gewinn (Einnahmen − Ausgaben):</span>
+      <span class="amount" id="profit">0,00 €</span>
+    </div>
+    <div style="margin-top: 16px; text-align: center;">
+      <div style="color: var(--muted); font-size: 0.9rem;">Empfohlene Rücklage für die Steuer</div>
+      <div class="big" id="taxAmount">0,00 €</div>
+      <div style="font-size: 0.85rem; color: var(--muted);" id="taxDetail"></div>
+    </div>
+    <button onclick="resetAll()" class="secondary" style="width: 100%; margin-top: 16px;">Alles zurücksetzen</button>
+    <div style="display: flex; gap: 8px; margin-top: 10px;">
+      <button onclick="exportData()" class="secondary" style="flex:1;">Daten exportieren</button>
+      <button onclick="document.getElementById('importFile').click()" class="secondary" style="flex:1;">Daten importieren</button>
+    </div>
+    <input type="file" id="importFile" accept=".json" style="display:none" onchange="importData(event)">
+    <p class="hint">Hinweis: Dies ist ein einfacher Schätzer. Keine Steuerberatung. Einträge werden automatisch im Browser gespeichert. Mit Export/Import kannst du die Daten sichern oder auf ein anderes Gerät übertragen.</p>
+  </div>
+
+<script>
+const STORAGE_KEY = "steuer-ruecklage-v2";
+
+let transactions = [];
+let taxRate = 35;
+
+function formatEuro(n) {
+  return n.toLocaleString("de-DE", { style: "currency", currency: "EUR" });
+}
+
+function currentMonth() {
+  const d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0");
+}
+
+function formatMonth(ym) {
+  if (!ym) return "";
+  const [y, m] = ym.split("-");
+  const months = ["Jan","Feb","Mär","Apr","Mai","Jun","Jul","Aug","Sep","Okt","Nov","Dez"];
+  return months[parseInt(m,10)-1] + " " + y;
+}
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({ transactions, taxRate }));
+}
+
+function load() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const data = JSON.parse(raw);
+      transactions = data.transactions || [];
+      taxRate = data.taxRate ?? 35;
+    } else {
+      const old = JSON.parse(localStorage.getItem("steuer-ruecklage-v1") || "{}");
+      const cm = currentMonth();
+      (old.incomes || []).forEach(i => transactions.push({type:"income", desc:i.desc, amount:i.amount, month:cm}));
+      (old.expenses || []).forEach(e => transactions.push({type:"expense", desc:e.desc, amount:e.amount, month:cm}));
+      taxRate = old.taxRate ?? 35;
+    }
+    document.getElementById("taxRate").value = taxRate;
+  } catch (e) {}
+  document.getElementById("incomeMonth").value = currentMonth();
+  document.getElementById("expenseMonth").value = currentMonth();
+  document.getElementById("withdrawalMonth").value = currentMonth();
+}
+
+function render() {
+  const incomeList = document.getElementById("incomeList");
+  const expenseList = document.getElementById("expenseList");
+  const withdrawalList = document.getElementById("withdrawalList");
+  incomeList.innerHTML = "";
+  expenseList.innerHTML = "";
+  withdrawalList.innerHTML = "";
+
+  const incomes = transactions.filter(t => t.type === "income");
+  const expenses = transactions.filter(t => t.type === "expense");
+  const withdrawals = transactions.filter(t => t.type === "withdrawal");
+
+  incomes.forEach((item) => {
+    const idx = transactions.indexOf(item);
+    const div = document.createElement("div");
+    div.className = "entry";
+    div.innerHTML = `<span>${formatMonth(item.month)} · ${item.desc || "Einnahme"}</span><span class="amount positive">${formatEuro(item.amount)} <button class="danger" onclick="removeTx(${idx})">✕</button></span>`;
+    incomeList.appendChild(div);
+  });
+
+  expenses.forEach((item) => {
+    const idx = transactions.indexOf(item);
+    const div = document.createElement("div");
+    div.className = "entry";
+    div.innerHTML = `<span>${formatMonth(item.month)} · ${item.desc || "Ausgabe"}</span><span class="amount negative">${formatEuro(item.amount)} <button class="danger" onclick="removeTx(${idx})">✕</button></span>`;
+    expenseList.appendChild(div);
+  });
+
+  withdrawals.forEach((item) => {
+    const idx = transactions.indexOf(item);
+    const div = document.createElement("div");
+    div.className = "entry";
+    div.innerHTML = `<span>${formatMonth(item.month)} · ${item.desc || "Entnahme"}</span><span class="amount withdrawal">${formatEuro(item.amount)} <button class="danger" onclick="removeTx(${idx})">✕</button></span>`;
+    withdrawalList.appendChild(div);
+  });
+
+  const incomeSum = incomes.reduce((s, x) => s + x.amount, 0);
+  const expenseSum = expenses.reduce((s, x) => s + x.amount, 0);
+  const withdrawalSum = withdrawals.reduce((s, x) => s + x.amount, 0);
+  const profit = incomeSum - expenseSum;
+  const rate = parseFloat(document.getElementById("taxRate").value) || 0;
+  const tax = Math.max(0, profit) * (rate / 100);
+
+  document.getElementById("incomeTotal").textContent = formatEuro(incomeSum);
+  document.getElementById("expenseTotal").textContent = formatEuro(expenseSum);
+  document.getElementById("withdrawalTotal").textContent = formatEuro(withdrawalSum);
+  document.getElementById("profit").textContent = formatEuro(profit);
+  document.getElementById("profit").className = "amount " + (profit >= 0 ? "positive" : "negative");
+  document.getElementById("taxAmount").textContent = formatEuro(tax);
+  document.getElementById("taxDetail").textContent = rate > 0 && profit > 0 
+    ? `${rate} % von ${formatEuro(profit)}` 
+    : (profit <= 0 ? "Kein Gewinn – keine Rücklage nötig" : "");
+
+  const byMonth = {};
+  transactions.forEach(t => {
+    if (!byMonth[t.month]) byMonth[t.month] = {income:0, expense:0, withdrawal:0};
+    byMonth[t.month][t.type] += t.amount;
+  });
+  const months = Object.keys(byMonth).sort().reverse();
+  const statsEl = document.getElementById("monthlyStats");
+  if (months.length === 0) {
+    statsEl.innerHTML = "<p style='color:var(--muted);font-size:0.9rem;'>Noch keine Einträge.</p>";
+  } else {
+    let html = `<div class="month-row month-header"><span>Monat</span><span>Einnahmen</span><span>Ausgaben</span><span>Entnahmen</span></div>`;
+    months.forEach(m => {
+      const d = byMonth[m];
+      html += `<div class="month-row">
+        <span>${formatMonth(m)}</span>
+        <span class="positive">${formatEuro(d.income)}</span>
+        <span class="negative">${formatEuro(d.expense)}</span>
+        <span class="withdrawal">${formatEuro(d.withdrawal)}</span>
+      </div>`;
+    });
+    statsEl.innerHTML = html;
+  }
+
+  taxRate = rate;
+  save();
+}
+
+function parseAmount(value) {
+  if (!value) return NaN;
+  const normalized = value.trim().replace(/\s/g, "").replace(",", ".");
+  const num = parseFloat(normalized);
+  return isNaN(num) ? NaN : num;
+}
+
+function addIncome() {
+  const desc = document.getElementById("incomeDesc").value.trim();
+  const raw = document.getElementById("incomeAmount").value;
+  const month = document.getElementById("incomeMonth").value || currentMonth();
+  const amount = parseAmount(raw);
+  if (!isNaN(amount) && amount > 0) {
+    transactions.push({type:"income", desc, amount, month});
+    document.getElementById("incomeDesc").value = "";
+    document.getElementById("incomeAmount").value = "";
+    render();
+  } else {
+    alert("Bitte einen gültigen Betrag größer als 0 eingeben (z. B. 150 oder 150,50).");
+  }
+}
+
+function addExpense() {
+  const desc = document.getElementById("expenseDesc").value.trim();
+  const raw = document.getElementById("expenseAmount").value;
+  const month = document.getElementById("expenseMonth").value || currentMonth();
+  const amount = parseAmount(raw);
+  if (!isNaN(amount) && amount > 0) {
+    transactions.push({type:"expense", desc, amount, month});
+    document.getElementById("expenseDesc").value = "";
+    document.getElementById("expenseAmount").value = "";
+    render();
+  } else {
+    alert("Bitte einen gültigen Betrag größer als 0 eingeben (z. B. 150 oder 150,50).");
+  }
+}
+
+function addWithdrawal() {
+  const desc = document.getElementById("withdrawalDesc").value.trim();
+  const raw = document.getElementById("withdrawalAmount").value;
+  const month = document.getElementById("withdrawalMonth").value || currentMonth();
+  const amount = parseAmount(raw);
+  if (!isNaN(amount) && amount > 0) {
+    transactions.push({type:"withdrawal", desc, amount, month});
+    document.getElementById("withdrawalDesc").value = "";
+    document.getElementById("withdrawalAmount").value = "";
+    render();
+  } else {
+    alert("Bitte einen gültigen Betrag größer als 0 eingeben (z. B. 150 oder 150,50).");
+  }
+}
+
+function removeTx(i) {
+  transactions.splice(i, 1);
+  render();
+}
+
+function resetAll() {
+  if (confirm("Alle Einträge und den Steuersatz zurücksetzen?")) {
+    transactions = [];
+    taxRate = 35;
+    document.getElementById("taxRate").value = 35;
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem("steuer-ruecklage-v1");
+    render();
+  }
+}
+
+function exportData() {
+  const data = { transactions, taxRate, exportedAt: new Date().toISOString() };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "steuer-ruecklage-backup.json";
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function importData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (data.transactions) {
+        transactions = data.transactions;
+        taxRate = data.taxRate ?? 35;
+        document.getElementById("taxRate").value = taxRate;
+        render();
+        alert("Daten erfolgreich importiert!");
+      } else if (data.incomes && data.expenses) {
+        const cm = currentMonth();
+        transactions = [];
+        (data.incomes || []).forEach(i => transactions.push({type:"income", desc:i.desc, amount:i.amount, month:cm}));
+        (data.expenses || []).forEach(e => transactions.push({type:"expense", desc:e.desc, amount:e.amount, month:cm}));
+        taxRate = data.taxRate ?? 35;
+        document.getElementById("taxRate").value = taxRate;
+        render();
+        alert("Alte Daten importiert (alle auf aktuellen Monat gesetzt).");
+      } else {
+        alert("Ungültige Datei.");
+      }
+    } catch (err) {
+      alert("Fehler beim Lesen der Datei.");
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = "";
+}
+
+document.getElementById("taxRate").addEventListener("input", render);
+document.getElementById("incomeAmount").addEventListener("keypress", e => { if (e.key === "Enter") addIncome(); });
+document.getElementById("expenseAmount").addEventListener("keypress", e => { if (e.key === "Enter") addExpense(); });
+document.getElementById("withdrawalAmount").addEventListener("keypress", e => { if (e.key === "Enter") addWithdrawal(); });
+
+load();
+render();
+</script>
+</body>
+</html>
